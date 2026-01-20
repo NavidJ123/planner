@@ -193,4 +193,12 @@ class PlannerRepository(private val db: AppDb) {
     suspend fun setTaskStatus(taskId: String, status: TaskStatus) = withContext(Dispatchers.IO) {
         db.taskDao().updateStatus(taskId, status)
     }
+
+    suspend fun updateTask(task: TaskInstanceEntity) = withContext(Dispatchers.IO) {
+        db.taskDao().update(task)
+    }
+
+    suspend fun deleteCourse(course: CourseEntity) = withContext(Dispatchers.IO) {
+        db.courseDao().delete(course)
+    }
 }

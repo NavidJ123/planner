@@ -5,7 +5,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border   // <--- IMPORTANT: Fixes the border error
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -38,17 +38,27 @@ fun TodoListScreen(appDb: AppDb) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Repositories
+    // --- Repositories ---
     val repo = remember(appDb) { PlannerRepository(appDb) }
     val calendarRepo = remember(context) { CalendarRepository(context) }
 
-    // State
+    // --- State ---
     val today = remember { LocalDate.now() }
+
+    // 1. Observe Tasks
     val tasks by appDb.taskDao()
         .observeTasksInDateRange(today.minusMonths(1), today.plusMonths(1))
         .collectAsState(initial = emptyList())
 
-    // Permission Launcher
+    // 2. Observe Courses (Needed for the Editor)
+    val courses by appDb.courseDao()
+        .observeCourses()
+        .collectAsState(initial = emptyList())
+
+    // 3. Edit State
+    var editingTask by remember { mutableStateOf<TaskInstanceEntity?>(null) }
+
+    // --- Permissions ---
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -56,48 +66,50 @@ fun TodoListScreen(appDb: AppDb) {
         if (granted) Toast.makeText(context, "Calendar Sync Active", Toast.LENGTH_SHORT).show()
     }
 
-    // Request permissions on start
     LaunchedEffect(Unit) {
         permissionLauncher.launch(
             arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)
         )
     }
 
+    // --- UI Layout ---
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
                     scope.launch {
+                        // 1. Create the new task object
                         val newId = UUID.randomUUID().toString()
-                        val taskTitle = "New Task"
                         val taskDate = LocalDate.now()
-
-                        // 1. Save to DB
-                        repo.createOneOffTask(
-                            TaskInstanceEntity(
-                                id = newId,
-                                templateId = null,
-                                title = taskTitle,
-                                courseId = null,
-                                priority = 1,
-                                startDate = taskDate,
-                                endDate = taskDate,
-                                dueDate = taskDate,
-                                status = TaskStatus.TODO,
-                                overrideColorArgb = null,
-                                reminderAt = null
-                            )
+                        val newTask = TaskInstanceEntity(
+                            id = newId,
+                            templateId = null,
+                            title = "New Task",
+                            courseId = null,
+                            priority = 1,
+                            startDate = taskDate,
+                            endDate = taskDate,
+                            dueDate = taskDate,
+                            status = TaskStatus.TODO,
+                            overrideColorArgb = null,
+                            reminderAt = null
                         )
 
-                        // 2. Sync to Calendar
+                        // 2. Save to DB
+                        repo.createOneOffTask(newTask)
+
+                        // 3. Sync to Calendar
                         calendarRepo.exportTaskToCalendar(
-                            title = taskTitle,
+                            title = newTask.title,
                             description = "Created from Planner App",
                             startDateTime = taskDate.atTime(9, 0),
                             endDateTime = taskDate.atTime(10, 0)
                         )
 
-                        Toast.makeText(context, "Task added & synced!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Task added!", Toast.LENGTH_SHORT).show()
+
+                        // 4. Immediately open editor
+                        editingTask = newTask
                     }
                 },
                 containerColor = MaterialTheme.colorScheme.primary
@@ -119,52 +131,99 @@ fun TodoListScreen(appDb: AppDb) {
             )
             Spacer(modifier = Modifier.height(20.dp))
 
+            // Filter Tasks
             val overdue = tasks.filter { it.dueDate.isBefore(today) && it.status != TaskStatus.DONE }
             val todaysTasks = tasks.filter { it.dueDate.isEqual(today) }
             val upcoming = tasks.filter { it.dueDate.isAfter(today) }
 
             LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
 
+                // Overdue Section
                 if (overdue.isNotEmpty()) {
                     item { SectionHeader("Overdue", Color(0xFFFF5252)) }
-                    items(overdue) { t -> TaskRow(t, repo) }
+                    items(overdue) { t ->
+                        TaskRow(
+                            task = t,
+                            onCheckClick = { toggleStatus(t, repo, scope) },
+                            onRowClick = { editingTask = t }
+                        )
+                    }
                 }
 
+                // Today Section
                 item { SectionHeader("Today", MaterialTheme.colorScheme.primary) }
                 if (todaysTasks.isEmpty()) {
                     item { EmptyState("No tasks for today. Relax!") }
                 } else {
-                    items(todaysTasks) { t -> TaskRow(t, repo) }
+                    items(todaysTasks) { t ->
+                        TaskRow(
+                            task = t,
+                            onCheckClick = { toggleStatus(t, repo, scope) },
+                            onRowClick = { editingTask = t }
+                        )
+                    }
                 }
 
+                // Upcoming Section
                 if (upcoming.isNotEmpty()) {
                     item { SectionHeader("Upcoming", Color.Gray) }
-                    items(upcoming) { t -> TaskRow(t, repo) }
+                    items(upcoming) { t ->
+                        TaskRow(
+                            task = t,
+                            onCheckClick = { toggleStatus(t, repo, scope) },
+                            onRowClick = { editingTask = t }
+                        )
+                    }
                 }
             }
         }
     }
+
+    // --- Editor Dialog ---
+    if (editingTask != null) {
+        TaskEditorDialog(
+            task = editingTask!!,
+            courses = courses,
+            onDismiss = { editingTask = null },
+            onDelete = {
+                // Future: Implement delete logic in Repo
+                editingTask = null
+            },
+            onSave = { updatedTask ->
+                scope.launch {
+                    repo.updateTask(updatedTask)
+                    editingTask = null
+                }
+            }
+        )
+    }
+}
+
+// Helper to toggle status
+private fun toggleStatus(task: TaskInstanceEntity, repo: PlannerRepository, scope: kotlinx.coroutines.CoroutineScope) {
+    scope.launch {
+        val newStatus = if (task.status == TaskStatus.DONE) TaskStatus.TODO else TaskStatus.DONE
+        repo.setTaskStatus(task.id, newStatus)
+    }
 }
 
 @Composable
-fun TaskRow(task: TaskInstanceEntity, repo: PlannerRepository) {
-    val scope = rememberCoroutineScope()
+fun TaskRow(
+    task: TaskInstanceEntity,
+    onCheckClick: () -> Unit,
+    onRowClick: () -> Unit
+) {
     val isDone = task.status == TaskStatus.DONE
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
-            .clickable {
-                scope.launch {
-                    val newStatus = if (isDone) TaskStatus.TODO else TaskStatus.DONE
-                    repo.setTaskStatus(task.id, newStatus)
-                }
-            }
+            .clickable { onRowClick() } // Clicking row opens editor
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Checkbox with Border
+        // Notion-style Checkbox
         Box(
             modifier = Modifier
                 .size(24.dp)
@@ -172,11 +231,12 @@ fun TaskRow(task: TaskInstanceEntity, repo: PlannerRepository) {
                     if (isDone) MaterialTheme.colorScheme.primary else Color.Transparent,
                     RoundedCornerShape(4.dp)
                 )
-                .border( // <--- This should now work
-                    2.dp,
-                    if (isDone) MaterialTheme.colorScheme.primary else Color.LightGray,
-                    RoundedCornerShape(4.dp)
-                ),
+                .border(
+                    width = 2.dp,
+                    color = if (isDone) MaterialTheme.colorScheme.primary else Color.LightGray,
+                    shape = RoundedCornerShape(4.dp)
+                )
+                .clickable { onCheckClick() }, // Only checkbox toggles status
             contentAlignment = Alignment.Center
         ) {
             if (isDone) {
@@ -221,6 +281,16 @@ fun TaskRow(task: TaskInstanceEntity, repo: PlannerRepository) {
                         color = Color(0xFFFF5252)
                     )
                 }
+
+                // Show Course Indicator if assigned
+                if (task.courseId != null) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "• Class Assigned",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }
@@ -233,7 +303,7 @@ fun SectionHeader(text: String, color: Color) {
         style = MaterialTheme.typography.labelMedium,
         fontWeight = FontWeight.Bold,
         color = color,
-        modifier = Modifier.padding(bottom = 4.dp)
+        modifier = Modifier.padding(bottom = 4.dp, top = 8.dp)
     )
 }
 

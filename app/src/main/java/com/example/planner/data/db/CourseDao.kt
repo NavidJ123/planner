@@ -24,4 +24,5 @@ interface CourseDao {
 
     @Query("DELETE FROM courses")
     suspend fun deleteAll()
+
 }

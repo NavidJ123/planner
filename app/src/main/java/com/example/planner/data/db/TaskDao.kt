@@ -39,4 +39,7 @@ interface TaskDao {
 
     @Query("SELECT * FROM task_instances WHERE templateId = :templateId")
     suspend fun getInstancesForTemplate(templateId: String): List<TaskInstanceEntity>
+
+    @Update
+    suspend fun update(task: TaskInstanceEntity)
 }
