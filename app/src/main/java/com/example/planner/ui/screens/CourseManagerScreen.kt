@@ -99,12 +99,20 @@ fun CourseManagerScreen(appDb: AppDb) {
 fun AddCourseDialog(onDismiss: () -> Unit, onSave: (String, Color) -> Unit) {
     var name by remember { mutableStateOf("") }
     var selectedColor by remember { mutableStateOf(Color(0xFF4FA3FF)) } // Default Blue
+    // In CourseManagerScreen.kt -> AddCourseDialog function
+// Replace the 'val colors' list with this expanded list:
+
     val colors = listOf(
-        Color(0xFF4FA3FF), // Blue
-        Color(0xFFE74C3C), // Red
-        Color(0xFF2ECC71), // Green
-        Color(0xFFF1C40F), // Yellow
-        Color(0xFF9B59B6)  // Purple
+        Color(0xFFEF5350), // Red
+        Color(0xFFEC407A), // Pink
+        Color(0xFFAB47BC), // Purple
+        Color(0xFF5C6BC0), // Indigo
+        Color(0xFF42A5F5), // Blue
+        Color(0xFF26A69A), // Teal
+        Color(0xFF66BB6A), // Green
+        Color(0xFFFFA726), // Orange
+        Color(0xFF8D6E63), // Brown
+        Color(0xFF78909C)  // Blue Grey
     )
 
     AlertDialog(

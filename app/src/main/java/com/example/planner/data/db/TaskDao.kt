@@ -42,4 +42,7 @@ interface TaskDao {
 
     @Update
     suspend fun update(task: TaskInstanceEntity)
+
+    @Delete
+    suspend fun deleteInstance(task: TaskInstanceEntity)
 }

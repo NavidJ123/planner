@@ -201,4 +201,8 @@ class PlannerRepository(private val db: AppDb) {
     suspend fun deleteCourse(course: CourseEntity) = withContext(Dispatchers.IO) {
         db.courseDao().delete(course)
     }
+
+    suspend fun deleteTask(task: TaskInstanceEntity) = withContext(Dispatchers.IO) {
+        db.taskDao().deleteInstance(task)
+    }
 }

@@ -186,8 +186,11 @@ fun TodoListScreen(appDb: AppDb) {
             courses = courses,
             onDismiss = { editingTask = null },
             onDelete = {
-                // Future: Implement delete logic in Repo
-                editingTask = null
+                scope.launch {
+                    repo.deleteTask(editingTask!!) // Call the new repository function
+                    editingTask = null
+                    Toast.makeText(context, "Task Deleted", Toast.LENGTH_SHORT).show()
+                }
             },
             onSave = { updatedTask ->
                 scope.launch {
