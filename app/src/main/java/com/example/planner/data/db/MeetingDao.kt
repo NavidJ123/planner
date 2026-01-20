@@ -3,7 +3,7 @@ package com.example.planner.data.db
 import androidx.room.*
 import com.example.planner.data.entity.*
 import kotlinx.coroutines.flow.Flow
-
+import java.time.LocalDateTime
 @Dao
 interface MeetingDao {
 
@@ -12,7 +12,7 @@ interface MeetingDao {
     suspend fun upsertPattern(pattern: CourseMeetingPatternEntity)
 
     @Query("SELECT * FROM course_meeting_patterns WHERE courseId = :courseId")
-    suspend fun getPatternsForCourse(courseId: String): List<CourseMeetingPatternEntity>
+    fun getPatternsForCourse(courseId: String): List<CourseMeetingPatternEntity>
 
     // ---- Instances ----
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -24,6 +24,10 @@ interface MeetingDao {
         ORDER BY startDateTime
     """)
     fun getInstancesBetween(start: String, end: String): Flow<List<CourseMeetingInstanceEntity>>
+
+    @Query("SELECT * FROM course_meeting_instances WHERE startDateTime >= :start AND startDateTime < :end ORDER BY startDateTime")
+    fun observeInstancesInRange(start: LocalDateTime, end: LocalDateTime): Flow<List<CourseMeetingInstanceEntity>>
+
 
     @Query("DELETE FROM course_meeting_patterns")
     suspend fun deleteAllPatterns()

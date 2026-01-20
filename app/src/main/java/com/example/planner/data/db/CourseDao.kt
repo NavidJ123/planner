@@ -19,6 +19,9 @@ interface CourseDao {
     @Query("SELECT * FROM courses WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): CourseEntity?
 
+    @Query("SELECT * FROM courses ORDER BY name ASC")
+    fun observeCourses(): Flow<List<CourseEntity>>
+
     @Query("DELETE FROM courses")
     suspend fun deleteAll()
 }

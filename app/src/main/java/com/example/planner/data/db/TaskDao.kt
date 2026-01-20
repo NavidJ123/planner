@@ -3,7 +3,7 @@ package com.example.planner.data.db
 import androidx.room.*
 import com.example.planner.data.entity.*
 import kotlinx.coroutines.flow.Flow
-
+import java.time.LocalDate
 @Dao
 interface TaskDao {
 
@@ -27,6 +27,9 @@ interface TaskDao {
 
     @Query("UPDATE task_instances SET status = :status WHERE id = :id")
     suspend fun updateStatus(id: String, status: TaskStatus)
+
+    @Query("SELECT * FROM task_instances WHERE dueDate >= :start AND dueDate <= :end ORDER BY dueDate")
+    fun observeTasksInDateRange(start: LocalDate, end: LocalDate): Flow<List<TaskInstanceEntity>>
 
     @Query("DELETE FROM task_instances")
     suspend fun deleteAllTasks()
