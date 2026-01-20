@@ -5,7 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.room.Room
 import com.example.planner.data.db.AppDb
-import com.example.planner.ui.screens.DebugHomeScreen
+import com.example.planner.ui.screens.MainScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -18,7 +18,7 @@ class MainActivity : ComponentActivity() {
         ).build()
 
         setContent {
-            DebugHomeScreen(appDb = db)
+            MainScreen(appDb = db)
         }
     }
 }
