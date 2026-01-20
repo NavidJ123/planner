@@ -27,4 +27,13 @@ interface TaskDao {
 
     @Query("UPDATE task_instances SET status = :status WHERE id = :id")
     suspend fun updateStatus(id: String, status: TaskStatus)
+
+    @Query("DELETE FROM task_instances")
+    suspend fun deleteAllTasks()
+
+    @Query("DELETE FROM task_templates")
+    suspend fun deleteAllTemplates()
+
+    @Query("SELECT * FROM task_instances WHERE templateId = :templateId")
+    suspend fun getInstancesForTemplate(templateId: String): List<TaskInstanceEntity>
 }

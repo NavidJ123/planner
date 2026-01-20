@@ -12,7 +12,7 @@ interface MeetingDao {
     suspend fun upsertPattern(pattern: CourseMeetingPatternEntity)
 
     @Query("SELECT * FROM course_meeting_patterns WHERE courseId = :courseId")
-    fun getPatternsForCourse(courseId: String): Flow<List<CourseMeetingPatternEntity>>
+    suspend fun getPatternsForCourse(courseId: String): List<CourseMeetingPatternEntity>
 
     // ---- Instances ----
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -23,8 +23,14 @@ interface MeetingDao {
         WHERE startDateTime BETWEEN :start AND :end
         ORDER BY startDateTime
     """)
-    fun getInstancesBetween(
-        start: String,
-        end: String
-    ): Flow<List<CourseMeetingInstanceEntity>>
+    fun getInstancesBetween(start: String, end: String): Flow<List<CourseMeetingInstanceEntity>>
+
+    @Query("DELETE FROM course_meeting_patterns")
+    suspend fun deleteAllPatterns()
+
+    @Query("DELETE FROM course_meeting_instances")
+    suspend fun deleteAllInstances()
+
+    @Query("DELETE FROM course_meeting_skips")
+    suspend fun deleteAllSkips()
 }

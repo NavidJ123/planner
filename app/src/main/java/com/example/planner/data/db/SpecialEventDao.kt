@@ -19,4 +19,7 @@ interface SpecialEventDao {
         ORDER BY startDateTime
     """)
     fun getBetween(start: String, end: String): Flow<List<SpecialEventEntity>>
+
+    @Query("DELETE FROM special_events")
+    suspend fun deleteAll()
 }
